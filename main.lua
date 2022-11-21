@@ -1,6 +1,6 @@
 
 -- Name: Inspector Key
--- Version 0.0.1 (Beta) (Last updated: 19 Nov 2022)
+-- Version 0.0.2 (Beta) (Last updated: 21 Nov 2022)
 -- Supported LÖVE versions: 11.4
 
 -- Description: Displays a mock PC keyboard with Scancode and KeyConstant labels, and
@@ -10,6 +10,15 @@
 -- * Click + drag to scroll, mouse wheel up/down to zoom. The window is resizable as well.
 -- * Use the key combo 'Shift+Esc' to quit.
 
+--[[
+	Beta changelog:
+	* 0.0.2:
+		* Simplified how mock keys are positioned and spaced
+		* Added function to dump the current mock keyboard layout to the terminal/console as a table
+		* Color scheme: darkened key outlines while idle
+		* Mouse buttons 1, 2 and 3 all initiate scrolling now
+		* Started changelog
+--]]
 
 --[[
 MIT License
@@ -41,6 +50,7 @@ TODO:
 * Add a separate list of scancodes that don't appear on the standard layout.
 * Mac layout differences?
 * Maybe include an alternative, laptop-shaped keyboard as well.
+* State of modkeys (numlock, etc -- LÖVE 12 adds 'love.keyboard.isModifierActive')
 --]]
 
 
@@ -60,7 +70,8 @@ local colors = {
 	kb_main_body = {0.2, 0.2, 0.4, 1.0},
 	kb_main_outline = {0.1, 0.1, 0.1, 1.0},
 
-	kb_key_outline = {0.8, 0.8, 0.8, 1.0},
+	kb_key_outline = {0.1, 0.1, 0.1, 1.0},
+	kb_key_outline_active = {0.8, 0.8, 0.8, 1.0},
 	kb_key_body = {0.25, 0.25, 0.25, 1.0},
 	kb_key_body_active = {0.4, 0.4, 0.4, 1.0},
 
@@ -85,205 +96,316 @@ end
 
 -- Common measurements.
 
-local key_len = 64 -- width and height of a standard key
-local key_gap0 = 38 -- various gaps between keys and key-groups
-local key_gap1 = 32
+local key_size_normal = 64 -- width and height of a standard key
+local key_size_half = math.floor(0.5 + key_size_normal / 2)
+local key_size_quarter = math.floor(0.5 + key_size_normal / 4)
+
+-- various gaps between keys and key-groups
 local key_gap2 = 16
-local key_gap3 = 8
 local key_gap4 = 4
+local key_gap8 = 2
 
 
 -- Sets up a key within the mock keyboard diagram.
-local function newKey(scancode, w, h, gap_left)
+local function newKey(scancode, w, h)
+	h = h or w
+
 	if not scancode then error("missing scancode", 2)
 	elseif not w then error("missing w", 2)
 	elseif not h then error("missing h", 2)
-	elseif not gap_left then error("missing gap_left", 2)
 	end
 
-	return {scancode = scancode, x = 0, y = 0, w = w, h = h, gap_left = gap_left}
+	return {scancode = scancode, x = 0, y = 0, w = w, h = h}
 end
 
 
+local function newHorizontalGap(w, jump_index)
+
+	jump_index = jump_index or false
+	if not w then error("missing w", 2)
+	end
+
+	return {is_gap = true, w = w, jump_index = jump_index}
+end
+
+
+local function trimKey(key, left, right, top, bottom)
+
+	key.x = key.x + left
+	key.y = key.y + top
+	key.w = key.w - (left + right)
+	key.h = key.h - (top + bottom)
+end
+
+
+--- Dumps the contents of the mock keyboard to the terminal. Feel free to use. See arrangeMockKeyboard for commented-out
+--  lines that call this.
+local function dumpMockKeyboard(kb)
+	io.write(
+		"{\n" ..
+		"\tx = " .. kb.x .. ",\n" ..
+		"\ty = " .. kb.y .. ",\n" ..
+		"\tw = " .. kb.w .. ",\n" ..
+		"\th = " .. kb.h .. ",\n"
+	)
+
+	io.write("\trows = {\n")
+
+	for i, row in ipairs(kb.rows) do
+		io.write("\t\t{\n")
+		for j = 1, #row do
+			local key = row[j]
+			if not key.is_gap then
+				-- Fix escaped strings
+				local escaped_scancode = key.scancode
+				if escaped_scancode == [[\]] then
+					escaped_scancode = [[\\]]
+				end
+				io.write("\t\t\t{scancode = \"" .. escaped_scancode .. "\", x = " .. key.x .. ", y = " .. key.y .. ", w = " .. key.w .. ", h = " .. key.h .. "},\n")
+			end
+		end
+		io.write("\t\t},\n")
+	end
+
+	io.write("\t}\n}\n")
+end
+--]]
+
+
 -- Our mock keyboard. Final dimensions and layout are set up a bit later.
-local mock_kb = {
+local function newMockKeyboardUS()
+	return {
+		x = 0,
+		y = 0,
+		w = 1,
+		h = 1,
 
-	x = 0,
-	y = 0,
-	w = 1,
-	h = 1,
-
-	-- These gaps are on the top side.
-	row_gaps = {
-		key_gap4, -- 1: esc, f-keys
-		key_len + key_gap2, -- 2; number row
-		key_len + key_gap4, -- 3: tab, qwerty
-		key_len + key_gap4, -- 4: caps lock, asdfg
-		key_len + key_gap4, -- 5: shift, zxcv
-		key_len + key_gap4, -- 6: space row
-	},
-
-	rows = {
-		{
-			x = 0,
-			y = 0,
-			newKey("escape", key_len, key_len, key_gap4),
-
-			newKey("f1", key_len, key_len, key_len + key_gap4*2),
-			newKey("f2", key_len, key_len, key_gap4),
-			newKey("f3", key_len, key_len, key_gap4),
-			newKey("f4", key_len, key_len, key_gap4),
-
-			newKey("f5", key_len, key_len, key_gap0),
-			newKey("f6", key_len, key_len, key_gap4),
-			newKey("f7", key_len, key_len, key_gap4),
-			newKey("f8", key_len, key_len, key_gap4),
-
-			newKey("f9", key_len, key_len, key_gap0),
-			newKey("f10", key_len, key_len, key_gap4),
-			newKey("f11", key_len, key_len, key_gap4),
-			newKey("f12", key_len, key_len, key_gap4),
-
-			newKey("printscreen", key_len, key_len, key_gap2),
-			newKey("scrolllock", key_len, key_len, key_gap4),
-			newKey("pause", key_len, key_len, key_gap4),
-		}, {
-			newKey("`", key_len, key_len, key_gap4),
-			newKey("1", key_len, key_len, key_gap4),
-			newKey("2", key_len, key_len, key_gap4),
-			newKey("3", key_len, key_len, key_gap4),
-			newKey("4", key_len, key_len, key_gap4),
-			newKey("5", key_len, key_len, key_gap4),
-			newKey("6", key_len, key_len, key_gap4),
-			newKey("7", key_len, key_len, key_gap4),
-			newKey("8", key_len, key_len, key_gap4),
-			newKey("9", key_len, key_len, key_gap4),
-			newKey("0", key_len, key_len, key_gap4),
-			newKey("-", key_len, key_len, key_gap4),
-			newKey("=", key_len, key_len, key_gap4),
-			newKey("backspace", key_len * 2 + key_gap4, key_len, key_gap4), -- 2x wide key
-
-			newKey("insert", key_len, key_len, key_gap2),
-			newKey("home", key_len, key_len, key_gap4),
-			newKey("pageup", key_len, key_len, key_gap4),
-
-			newKey("numlock", key_len, key_len, key_gap2),
-			newKey("kp/", key_len, key_len, key_gap4),
-			newKey("kp*", key_len, key_len, key_gap4),
-			newKey("kp-", key_len, key_len, key_gap4),
-		}, {
-			newKey("tab", math.floor(0.5 + key_len * 1.5), key_len, key_gap4),
-			newKey("q", key_len, key_len, key_gap4),
-			newKey("w", key_len, key_len, key_gap4),
-			newKey("e", key_len, key_len, key_gap4),
-			newKey("r", key_len, key_len, key_gap4),
-			newKey("t", key_len, key_len, key_gap4),
-			newKey("y", key_len, key_len, key_gap4),
-			newKey("u", key_len, key_len, key_gap4),
-			newKey("i", key_len, key_len, key_gap4),
-			newKey("o", key_len, key_len, key_gap4),
-			newKey("p", key_len, key_len, key_gap4),
-			newKey("[", key_len, key_len, key_gap4),
-			newKey("]", key_len, key_len, key_gap4),
-			newKey("\\", math.floor(0.5 + key_len * 1.5) + key_gap4, key_len, key_gap4), -- 1.5x wide key
-
-			newKey("delete", key_len, key_len, key_gap2),
-			newKey("end", key_len, key_len, key_gap4),
-			newKey("pagedown", key_len, key_len, key_gap4),
-
-			newKey("kp7", key_len, key_len, key_gap2),
-			newKey("kp8", key_len, key_len, key_gap4),
-			newKey("kp9", key_len, key_len, key_gap4),
-			newKey("kp+", key_len, key_len*2 + key_gap4, key_gap4),
-		}, {
-			newKey("capslock", math.floor(0.5 + key_len * 1.75) + key_gap4, key_len, key_gap4),
-			newKey("a", key_len, key_len, key_gap4),
-			newKey("s", key_len, key_len, key_gap4),
-			newKey("d", key_len, key_len, key_gap4),
-			newKey("f", key_len, key_len, key_gap4),
-			newKey("g", key_len, key_len, key_gap4),
-			newKey("h", key_len, key_len, key_gap4),
-			newKey("j", key_len, key_len, key_gap4),
-			newKey("k", key_len, key_len, key_gap4),
-			newKey("l", key_len, key_len, key_gap4),
-			newKey(";", key_len, key_len, key_gap4),
-			newKey("'", key_len, key_len, key_gap4),
-			newKey("return", math.floor(0.5 + key_len*2.25) + key_gap4, key_len, key_gap4),
-
-			newKey("kp4", key_len, key_len, key_gap2 + (key_len*3 + key_gap4*2) + key_gap2),
-			newKey("kp5", key_len, key_len, key_gap4),
-			newKey("kp6", key_len, key_len, key_gap4),
-		}, {
-			newKey("lshift", math.floor(0.5 + key_len*2.5), key_len, key_gap4),
-			newKey("z", key_len, key_len, key_gap4),
-			newKey("x", key_len, key_len, key_gap4),
-			newKey("c", key_len, key_len, key_gap4),
-			newKey("v", key_len, key_len, key_gap4),
-			newKey("b", key_len, key_len, key_gap4),
-			newKey("n", key_len, key_len, key_gap4),
-			newKey("m", key_len, key_len, key_gap4),
-			newKey(",", key_len, key_len, key_gap4),
-			newKey(".", key_len, key_len, key_gap4),
-			newKey("/", key_len, key_len, key_gap4),
-			newKey("rshift", math.floor(0.5 + key_len*2.5) + key_gap4*3, key_len, key_gap4),
-
-			newKey("up", key_len, key_len, key_len + key_gap2 + key_gap4),
-
-			newKey("kp1", key_len, key_len, key_len + key_gap2 + key_gap4),
-			newKey("kp2", key_len, key_len, key_gap4),
-			newKey("kp3", key_len, key_len, key_gap4),
-			newKey("kpenter", key_len, key_len*2 + key_gap4, key_gap4),
-		}, {
-			newKey("lctrl", math.floor(0.5 + key_len * 1.2), key_len, key_gap4),
-			newKey("lgui", math.floor(0.5 + key_len * 1.2), key_len, key_gap4),
-			newKey("lalt", math.floor(0.5 + key_len * 1.2), key_len, key_gap4),
-			newKey("space", key_len * 7, key_len, key_gap4),
-			newKey("ralt", math.floor(0.5 + key_len * 1.2), key_len, key_gap4),
-			newKey("rgui", math.floor(0.5 + key_len * 1.2), key_len, key_gap4),
-			newKey("menu", math.floor(0.5 + key_len * 1.2), key_len, key_gap4),
-			newKey("rctrl", math.floor(0.5 + key_len * 1.2), key_len, key_gap4),
-
-			newKey("left", key_len, key_len, key_gap2),
-			newKey("down", key_len, key_len, key_gap4),
-			newKey("right", key_len, key_len, key_gap4),
-
-			newKey("kp0", key_len*2 + key_gap4, key_len, key_gap2),
-			newKey("kp.", key_len, key_len, key_gap4),
+		-- Cumulative Y start position for each row.
+		row_offsets = {
+			0, -- 1: esc, f-keys
+			key_size_normal + key_gap2, -- 2; number row
+			key_size_normal, -- 3: tab, qwerty
+			key_size_normal, -- 4: caps lock, asdfg
+			key_size_normal, -- 5: shift, zxcv
+			key_size_normal, -- 6: space row
 		},
-	},
-}
+
+		rows = {
+			{
+				x = 0,
+				y = 0,
+
+				newKey("escape", key_size_normal),
+
+				newHorizontalGap(key_size_normal),
+
+				newKey("f1", key_size_normal),
+				newKey("f2", key_size_normal),
+				newKey("f3", key_size_normal),
+				newKey("f4", key_size_normal),
+
+				newHorizontalGap(key_size_half),
+
+				newKey("f5", key_size_normal),
+				newKey("f6", key_size_normal),
+				newKey("f7", key_size_normal),
+				newKey("f8", key_size_normal),
+
+				newHorizontalGap(key_size_half),
+
+				newKey("f9", key_size_normal),
+				newKey("f10", key_size_normal),
+				newKey("f11", key_size_normal),
+				newKey("f12", key_size_normal),
+
+				newHorizontalGap(key_size_quarter),
+
+				newKey("printscreen", key_size_normal),
+				newKey("scrolllock", key_size_normal),
+				newKey("pause", key_size_normal),
+			},
+			{
+				newKey("`", key_size_normal),
+				newKey("1", key_size_normal),
+				newKey("2", key_size_normal),
+				newKey("3", key_size_normal),
+				newKey("4", key_size_normal),
+				newKey("5", key_size_normal),
+				newKey("6", key_size_normal),
+				newKey("7", key_size_normal),
+				newKey("8", key_size_normal),
+				newKey("9", key_size_normal),
+				newKey("0", key_size_normal),
+				newKey("-", key_size_normal),
+				newKey("=", key_size_normal),
+				newKey("backspace", key_size_normal * 2, key_size_normal),
+
+				newHorizontalGap(key_size_quarter),
+
+				newKey("insert", key_size_normal),
+				newKey("home", key_size_normal),
+				newKey("pageup", key_size_normal),
+
+				newHorizontalGap(key_size_quarter),
+
+				newKey("numlock", key_size_normal),
+				newKey("kp/", key_size_normal),
+				newKey("kp*", key_size_normal),
+				newKey("kp-", key_size_normal),
+
+			},
+			{
+				newKey("tab", math.floor(0.5 + key_size_normal * 1.5), key_size_normal),
+				newKey("q", key_size_normal),
+				newKey("w", key_size_normal),
+				newKey("e", key_size_normal),
+				newKey("r", key_size_normal),
+				newKey("t", key_size_normal),
+				newKey("y", key_size_normal),
+				newKey("u", key_size_normal),
+				newKey("i", key_size_normal),
+				newKey("o", key_size_normal),
+				newKey("p", key_size_normal),
+				newKey("[", key_size_normal),
+				newKey("]", key_size_normal),
+				newKey("\\", math.floor(0.5 + key_size_normal * 1.5), key_size_normal),
+
+				newHorizontalGap(key_size_quarter),
+
+				newKey("delete", key_size_normal),
+				newKey("end", key_size_normal),
+				newKey("pagedown", key_size_normal),
+
+				newHorizontalGap(key_size_quarter),
+
+				newKey("kp7", key_size_normal),
+				newKey("kp8", key_size_normal),
+				newKey("kp9", key_size_normal),
+				newKey("kp+", key_size_normal, key_size_normal * 2), -- extends down into the next row
+			},
+			{
+				newKey("capslock", math.floor(0.5 + key_size_normal * 1.75), key_size_normal),
+				newKey("a", key_size_normal),
+				newKey("s", key_size_normal),
+				newKey("d", key_size_normal),
+				newKey("f", key_size_normal),
+				newKey("g", key_size_normal),
+				newKey("h", key_size_normal),
+				newKey("j", key_size_normal),
+				newKey("k", key_size_normal),
+				newKey("l", key_size_normal),
+				newKey(";", key_size_normal),
+				newKey("'", key_size_normal),
+				newKey("return", math.floor(0.5 + key_size_normal * 2.25), key_size_normal),
+
+				newHorizontalGap(key_size_quarter + key_size_normal * 3 + key_size_quarter),
+
+				newKey("kp4", key_size_normal),
+				newKey("kp5", key_size_normal),
+				newKey("kp6", key_size_normal),
+				-- (kp+ extends to here.)
+			},
+			{
+				newKey("lshift", math.floor(0.5 + key_size_normal * 2.5), key_size_normal),
+				newKey("z", key_size_normal),
+				newKey("x", key_size_normal),
+				newKey("c", key_size_normal),
+				newKey("v", key_size_normal),
+				newKey("b", key_size_normal),
+				newKey("n", key_size_normal),
+				newKey("m", key_size_normal),
+				newKey(",", key_size_normal),
+				newKey(".", key_size_normal),
+				newKey("/", key_size_normal),
+				newKey("rshift", math.floor(0.5 + key_size_normal * 2.5), key_size_normal),
+
+				newHorizontalGap(key_size_quarter + key_size_normal),
+
+				newKey("up", key_size_normal),
+
+				newHorizontalGap(key_size_quarter + key_size_normal),
+
+				newKey("kp1", key_size_normal),
+				newKey("kp2", key_size_normal),
+				newKey("kp3", key_size_normal),
+				newKey("kpenter", key_size_normal, key_size_normal * 2), -- extends down to next row
+			},
+			{
+				newKey("lctrl", math.floor(0.5 + key_size_normal * 1.25), key_size_normal),
+				newKey("lgui", math.floor(0.5 + key_size_normal * 1.25), key_size_normal),
+				newKey("lalt", math.floor(0.5 + key_size_normal * 1.25), key_size_normal),
+				newKey("space", math.floor(0.5 + key_size_normal * 1.25 * 5), key_size_normal), -- roughly 5 'ctrl' keys long
+				newKey("ralt", math.floor(0.5 + key_size_normal * 1.25), key_size_normal),
+				newKey("rgui", math.floor(0.5 + key_size_normal * 1.25), key_size_normal),
+				newKey("menu", math.floor(0.5 + key_size_normal * 1.25), key_size_normal),
+				newKey("rctrl", math.floor(0.5 + key_size_normal * 1.25), key_size_normal),
+
+				newHorizontalGap(key_size_quarter),
+
+				newKey("left", key_size_normal),
+				newKey("down", key_size_normal),
+				newKey("right", key_size_normal),
+
+				newHorizontalGap(key_size_quarter),
+
+				newKey("kp0", math.floor(0.5 + key_size_normal * 2), key_size_normal),
+				newKey("kp.", key_size_normal),
+				-- 'kpenter' extends to this spot.
+			},
+		},
+	}
+end
 
 
 local function arrangeMockKeyboard(kb)
 
 	-- Place each key and calculate the total keyboard size.
-	-- Horizontal key position is cumulative per-row.
+	-- Keys are placed left-to-right.
 
 	local w, h = 1, 1
 
-	local yy = 0
+	local yy = key_gap4
+
 	for i, row in ipairs(kb.rows) do
-		local xx = 0
-		yy = yy + kb.row_gaps[i]
+		local xx = key_gap4
+		yy = yy + kb.row_offsets[i]
 
 		for j, key in ipairs(row) do
-			key.y = yy
+			if not key.is_gap then
+				key.x = xx
+				key.y = yy
 
-			xx = xx + key.gap_left
-			key.x = xx
+				w = math.max(w, key.x + key.w)
+				h = math.max(h, key.y + key.h)
+			end
+
 			xx = xx + key.w
-
-			w = math.max(w, key.x + key.w)
-			h = math.max(h, key.y + key.h)
 		end
 	end
 
 	kb.w = w + key_gap4
 	kb.h = h + key_gap4
+
+	-- Remove gap tables and trim the sizes of keys.
+	for i, row in ipairs(kb.rows) do
+		for j = #row, 1, -1 do
+			if row[j].is_gap then
+				table.remove(row, j)
+			else
+				trimKey(row[j], key_gap8, key_gap8, key_gap8, key_gap8)
+			end
+		end
+	end
+
+	-- Layout dump. Place above the loop to get the pre-trimmed version.
+	--dumpMockKeyboard(kb)
 end
 
 
+-- Demo initialization
+local mock_kb
 do
+	mock_kb = newMockKeyboardUS()
 	arrangeMockKeyboard(mock_kb)
 
 	-- Center scrolling on the mock keyboard.
@@ -321,7 +443,7 @@ end
 
 function love.mousemoved(x, y, dx, dy, istouch)
 
-	if down_mouse[1] then
+	if down_mouse[1] or down_mouse[2] or down_mouse[3] then
 		scroll_x = scroll_x + dx / math.max(0.001, scale_xy)
 		scroll_y = scroll_y + dy / math.max(0.001, scale_xy)
 	end
@@ -364,7 +486,6 @@ function love.draw()
 		for j, key in ipairs(row) do
 
 			local key_from_code = love.keyboard.getKeyFromScancode(key.scancode)
-
 			local key_active = love.keyboard.isDown(key_from_code)
 			local scan_active = love.keyboard.isScancodeDown(key.scancode)
 
@@ -372,7 +493,7 @@ function love.draw()
 			love.graphics.setColor((scan_active or key_active) and colors.kb_key_body_active or colors.kb_key_body)
 			love.graphics.rectangle("fill", 0.5 + key.x, 0.5 + key.y, key.w - 1, key.h - 1, 2, 2)
 
-			love.graphics.setColor(colors.kb_key_outline)
+			love.graphics.setColor((scan_active or key_active) and colors.kb_key_outline_active or colors.kb_key_outline)
 			setLineState(line_states.kb_key_outline)
 			love.graphics.rectangle("line", 0.5 + key.x, 0.5 + key.y, key.w - 1, key.h - 1, 2, 2)
 
