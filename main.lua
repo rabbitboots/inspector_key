@@ -119,13 +119,12 @@ local function newKey(scancode, w, h)
 end
 
 
-local function newHorizontalGap(w, jump_index)
+local function newHorizontalGap(w)
 
-	jump_index = jump_index or false
 	if not w then error("missing w", 2)
 	end
 
-	return {is_gap = true, w = w, jump_index = jump_index}
+	return {is_gap = true, w = w}
 end
 
 
