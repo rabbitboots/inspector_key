@@ -1,6 +1,6 @@
 function love.conf(t)
 	t.identity = "inspector_key"
-	t.version = "11.4"
+--	t.version = "11.4"
 
 	t.window.title = "Inspector Key"
 	t.window.resizable = true

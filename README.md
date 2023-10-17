@@ -1,6 +1,6 @@
 # inspector_key
 
-Version: 0.0.2 (BETA)
+Version: 0.0.3 (BETA)
 
 Inspector Key is a simple keyboard tester for the LÖVE Framework. It displays a mock keyboard with Scancode and KeyConstant labels, and lights up keys as they are pressed.
 
@@ -18,8 +18,6 @@ Inspector Key is a simple keyboard tester for the LÖVE Framework. It displays a
 
 Navigation is handled by the mouse. Click and drag to scroll the view, and use the mouse wheel to zoom in or out. The window is also resizable.
 
-Hold Shift and press Escape to quit from the keyboard.
-
 
 ## To-Do
 
@@ -32,7 +30,7 @@ Hold Shift and press Escape to quit from the keyboard.
 
 # License (MIT)
 
-Copyright (c) 2022 RBTS
+Copyright (c) 2022, 2023 RBTS
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal

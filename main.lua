@@ -1,6 +1,6 @@
 
 -- Name: Inspector Key
--- Version 0.0.2 (Beta) (Last updated: 21 Nov 2022)
+-- Version 0.0.3 (Beta)
 -- Supported LÖVE versions: 11.4
 
 -- Description: Displays a mock PC keyboard with Scancode and KeyConstant labels, and
@@ -8,11 +8,16 @@
 
 -- Controls: Because all keys are required for the test, view navigation is handled by the mouse.
 -- * Click + drag to scroll, mouse wheel up/down to zoom. The window is resizable as well.
--- * Use the key combo 'Shift+Esc' to quit.
+-- * Use 'Alt+F4' to quit.
 
 --[[
 	Beta changelog:
-	* 0.0.2:
+	* 0.0.3: (2023-OCT-16)
+		* Replaced 'menu' scancode with 'application' between 'rgui' and 'rctrl'.
+		* Removed the version check in conf.lua.
+		* Removed the exit keyboard shortcut.
+
+	* 0.0.2: (2022-NOV-21)
 		* Simplified how mock keys are positioned and spaced
 		* Added function to dump the current mock keyboard layout to the terminal/console as a table
 		* Color scheme: darkened key outlines while idle
@@ -23,7 +28,7 @@
 --[[
 MIT License
 
-Copyright (c) 2022 RBTS
+Copyright (c) 2022, 2023 RBTS
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -336,7 +341,8 @@ local function newMockKeyboardUS()
 				newKey("space", math.floor(0.5 + key_size_normal * 1.25 * 5), key_size_normal), -- roughly 5 'ctrl' keys long
 				newKey("ralt", math.floor(0.5 + key_size_normal * 1.25), key_size_normal),
 				newKey("rgui", math.floor(0.5 + key_size_normal * 1.25), key_size_normal),
-				newKey("menu", math.floor(0.5 + key_size_normal * 1.25), key_size_normal),
+				newKey("application", math.floor(0.5 + key_size_normal * 1.25), key_size_normal),
+
 				newKey("rctrl", math.floor(0.5 + key_size_normal * 1.25), key_size_normal),
 
 				newHorizontalGap(key_size_quarter),
@@ -417,16 +423,8 @@ end
 
 
 
-function love.keypressed(kc, sc, rep)
-
-	if kc == "escape" and love.keyboard.isDown("lshift", "rshift") then
-		love.event.quit()
-		return
-	end
-end
-
-
--- function love.keyreleased(kc, sc, rep)
+--function love.keypressed(kc, sc, rep)
+--function love.keyreleased(kc, sc, rep)
 
 
 local down_mouse = {} -- hash (not array) of pressed mouse buttons.
