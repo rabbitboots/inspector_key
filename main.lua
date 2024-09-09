@@ -1,6 +1,6 @@
 
 -- Name: Inspector Key
--- Version 0.0.3 (Beta)
+-- Version 0.0.4 (Beta)
 -- Supported LÖVE versions: 11.4
 
 -- Description: Displays a mock PC keyboard with Scancode and KeyConstant labels, and

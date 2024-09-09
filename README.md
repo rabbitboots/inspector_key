@@ -1,6 +1,6 @@
 # inspector_key
 
-Version: 0.0.3 (BETA)
+Version: 0.0.4 (BETA)
 
 Inspector Key is a simple keyboard tester for the LÖVE Framework. It displays a mock keyboard with Scancode and KeyConstant labels, and lights up keys as they are pressed.
 
