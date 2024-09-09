@@ -12,6 +12,10 @@
 
 --[[
 	Beta changelog:
+	* 0.0.4: (2024-SEPT-09)
+		* Removed "Shift+Esc to quit" from the control listing. Alt+F4 can be used on most
+		  systems instead.
+
 	* 0.0.3: (2023-OCT-16)
 		* Replaced 'menu' scancode with 'application' between 'rgui' and 'rctrl'.
 		* Removed the version check in conf.lua.
@@ -520,6 +524,6 @@ function love.draw()
 	local dy = wy - dh
 	love.graphics.rectangle("fill", 0, dy, wx, dh)
 	love.graphics.setColor(1,1,1,1)
-	love.graphics.print("Top: Scancodes, bottom: KeyConstants\tClick+drag to scroll\tMousewheel to zoom\tShift+Esc to quit", 8, dy + 8)
+	love.graphics.print("Top: Scancodes, bottom: KeyConstants\tClick+drag to scroll\tMousewheel to zoom", 8, dy + 8)
 end
 
